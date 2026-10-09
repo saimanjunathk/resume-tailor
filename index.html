@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resume Tailor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E4E9EE; --panel:#FAFBFC; --field:#FFFFFF; --ink:#17212B; --muted:#5A6876;
+  --line:#C7D0D9; --accent:#1F4FD1; --accent-ink:#FFFFFF; --mark:#FFE45C; --err:#B42318;
+  --ui:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12171D; --panel:#1A2129; --field:#10151B; --ink:#E6EBF0; --muted:#94A2B0;
+        --line:#2C3742; --accent:#7C9BFF; --accent-ink:#0B1220; --mark:#E8C93A; --err:#FF8A7A;}
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:15px/1.5 var(--ui);background:var(--bg);color:var(--ink);display:grid;grid-template-rows:auto 1fr}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{display:flex;align-items:center;gap:16px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:700;font-size:17px;letter-spacing:-.01em}
+.target{flex:1;min-width:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.target strong{color:var(--ink);font-weight:600}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.actions select{width:auto;max-width:240px;margin:0;padding:6px 8px}
+
+button{border:1px solid var(--line);background:var(--panel);padding:6px 12px;border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button:disabled{opacity:.5;cursor:progress}
+
+.work{display:grid;grid-template-columns:minmax(340px,420px) 1fr;min-height:0}
+.side{display:flex;flex-direction:column;min-height:0;background:var(--panel);border-right:1px solid var(--line)}
+#job{padding:12px 16px 16px;border-bottom:1px solid var(--line)}
+#job summary{font-weight:600;cursor:pointer}
+label{display:block;margin-top:10px;font-size:13px;color:var(--muted)}
+input,textarea,select{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--field)}
+textarea{resize:vertical}
+.row{display:flex;gap:8px;margin-top:12px}
+
+.chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.hint{color:var(--muted);font-size:14px;max-width:34ch}
+.msg{white-space:pre-wrap;max-width:92%;font-size:14px}
+.msg.user{align-self:flex-end;background:var(--bg);padding:8px 12px;border-radius:10px 10px 2px 10px}
+.msg.claude{border-left:4px solid var(--mark);padding:2px 0 2px 12px}
+.msg.pending{border-left:4px solid var(--line);padding-left:12px;color:var(--muted)}
+.msg.error{color:var(--err);font-size:13px}
+.composer{display:flex;gap:8px;align-items:flex-end;padding:12px 16px;border-top:1px solid var(--line)}
+.composer textarea{margin:0;resize:none}
+
+.stage{display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;align-items:center;gap:4px;padding:6px 18px;border-bottom:1px solid var(--line)}
+.tabs [role=tab]{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:6px 10px}
+.tabs [role=tab][aria-selected=true]{border-bottom-color:var(--accent);font-weight:600}
+.status{margin-left:auto;margin-right:8px;font-size:13px;color:var(--muted)}
+.pane{flex:1;min-height:0;overflow:auto}
+.pane[hidden]{display:none}
+#pane-preview{display:flex;justify-content:center;padding:24px}
+.sheet{position:relative;width:100%;max-width:900px;height:100%;min-height:600px;background:#fff;
+  box-shadow:0 1px 2px rgba(23,33,43,.12),0 14px 36px -10px rgba(23,33,43,.3)}
+.sheet iframe{display:block;width:100%;height:100%;border:0}
+.empty{position:absolute;inset:0;display:grid;place-content:center;gap:6px;text-align:center;padding:24px;background:#fff;color:#5A6876}
+.empty strong{color:#17212B;font-size:17px}
+.empty[hidden]{display:none}
+#pane-source{display:flex}
+#source{flex:1;margin:0;border:0;border-radius:0;padding:18px 22px;resize:none;font:13px/1.65 var(--mono);background:var(--field)}
+
+dialog{width:min(760px,94vw);max-height:90vh;border:1px solid var(--line);border-radius:10px;padding:20px 22px;background:var(--panel);color:var(--ink)}
+dialog::backdrop{background:rgba(10,15,20,.5)}
+dialog h2{margin:0 0 4px;font-size:19px}
+dialog p{margin:0 0 6px;color:var(--muted);font-size:14px}
+dialog .mono{font-family:var(--mono);font-size:12.5px}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+@media (max-width:860px){
+  html,body{height:auto}
+  .work{grid-template-columns:1fr}
+  .side{border-right:0;border-bottom:1px solid var(--line)}
+  .chat{max-height:50vh}
+  .sheet{min-height:80vh}
+  #source{min-height:70vh}
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">Resume Tailor</div>
+  <div class="target" id="target">No job loaded yet</div>
+  <div class="actions">
+    <select id="versions" aria-label="Restore a previous version" title="Restore a previous version"></select>
+    <button id="btn-overleaf">Open in Overleaf</button>
+    <button id="btn-pdf">Open PDF</button>
+    <button id="btn-tex">Download .tex</button>
+    <button id="btn-settings">Settings</button>
+  </div>
+</header>
+
+<main class="work">
+  <section class="side" aria-label="Job and chat">
+    <details id="job" open>
+      <summary>Job</summary>
+      <label>Company <input id="company" autocomplete="off" placeholder="e.g. Stripe"></label>
+      <label>Role title <input id="role" autocomplete="off" placeholder="e.g. Senior Data Engineer"></label>
+      <label>Job description <textarea id="jd" rows="9" placeholder="Paste the full job description"></textarea></label>
+      <div class="row">
+        <button class="primary" id="btn-generate">Generate resume</button>
+        <button id="btn-new">New application</button>
+      </div>
+    </details>
+    <div class="chat" id="chat" aria-live="polite"></div>
+    <form class="composer" id="chat-form">
+      <textarea id="chat-input" rows="2" placeholder="Ask for a change, e.g. Put Skills above Experience" aria-label="Message Claude"></textarea>
+      <button class="primary" id="btn-send" type="submit">Send</button>
+    </form>
+  </section>
+
+  <section class="stage" aria-label="Resume">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="preview">Preview</button>
+      <button role="tab" aria-selected="false" data-tab="source">LaTeX source</button>
+      <span class="status" id="status"></span>
+      <button id="btn-compile" title="Ctrl/Cmd + Enter">Recompile</button>
+    </div>
+    <div class="pane" id="pane-preview">
+      <div class="sheet">
+        <iframe name="preview" id="preview" title="Resume PDF preview"></iframe>
+        <div class="empty" id="empty">
+          <strong>Your resume appears here</strong>
+          <span>Paste a job description and select Generate resume.</span>
+        </div>
+      </div>
+    </div>
+    <div class="pane" id="pane-source" hidden>
+      <textarea id="source" spellcheck="false" aria-label="LaTeX source"></textarea>
+    </div>
+  </section>
+</main>
+
+<dialog id="settings">
+  <form method="dialog" id="settings-form">
+    <h2>Settings</h2>
+    <p>Saved only in this browser. Nothing is stored in the GitHub repo.</p>
+    <label>Anthropic API key <input id="s-key" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+    <label>Model <input id="s-model" list="models" autocomplete="off"></label>
+    <datalist id="models">
+      <option value="claude-sonnet-5-5"><option value="claude-opus-5-5"><option value="claude-haiku-5-5">
+    </datalist>
+    <label>Master resume — everything you have done; Claude picks from this and never adds facts beyond it
+      <textarea id="s-master" rows="10" placeholder="Paste your full resume (plain text or LaTeX)"></textarea></label>
+    <label>Your rules for every resume
+      <textarea id="s-rules" rows="4"></textarea></label>
+    <label>LaTeX template — leave empty to use the built-in one
+      <textarea id="s-template" rows="6" class="mono" spellcheck="false"></textarea></label>
+    <div class="dialog-actions">
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button class="primary" value="save" id="s-save">Save settings</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Compiles LaTeX on texlive.net and loads the PDF into the preview frame -->
+<form id="latex-form" method="post" action="https://texlive.net/cgi-bin/latexcgi" enctype="multipart/form-data" target="preview" hidden>
+  <textarea name="filecontents[]"></textarea>
+  <input type="hidden" name="filename[]" value="document.tex">
+  <input type="hidden" name="engine" value="pdflatex">
+  <input type="hidden" name="return" value="pdf">
+</form>
+
+<!-- Creates a new Overleaf project from the current LaTeX -->
+<form id="overleaf-form" method="post" action="https://www.overleaf.com/docs" target="_blank" hidden>
+  <input type="hidden" name="encoded_snip">
+  <input type="hidden" name="snip_name">
+  <input type="hidden" name="engine" value="pdflatex">
+</form>
+
+<script type="text/plain" id="default-template">
+\documentclass[letterpaper,10pt]{article}
+\usepackage[margin=0.55in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{charter}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\titleformat{\section}{\large\bfseries}{}{0pt}{}[\titlerule]
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+\setlist[itemize]{leftmargin=1.2em,itemsep=1pt,topsep=2pt,parsep=0pt}
+\newcommand{\role}[4]{\textbf{#1}\hfill #2\\\textit{#3}\hfill\textit{#4}\par}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries Full Name}\\[3pt]
+City, ST \;|\; \href{mailto:you@example.com}{you@example.com} \;|\; (000) 000-0000 \;|\;
+\href{https://linkedin.com/in/you}{linkedin.com/in/you} \;|\; \href{https://github.com/you}{github.com/you}
+\end{center}
+
+\section{Summary}
+Two or three lines aimed at the target role.
+
+\section{Experience}
+\role{Company}{City, ST}{Title}{Mon YYYY -- Present}
+\begin{itemize}
+  \item Impact-first bullet with a metric.
+\end{itemize}
+
+\section{Projects}
+\role{Project name}{\href{https://github.com/you/project}{github.com/you/project}}{Stack}{YYYY}
+\begin{itemize}
+  \item What it does and the measurable result.
+\end{itemize}
+
+\section{Skills}
+\textbf{Languages:} ... \\
+\textbf{Data \& Cloud:} ...
+
+\section{Education}
+\role{University}{City, ST}{Degree}{YYYY}
+
+\end{document}
+</script>
+
+<script>
+const $ = s => document.querySelector(s);
+const DEFAULT_TEMPLATE = $('#default-template').textContent.trim();
+const DEFAULT_RULES =
+`- Never shorten or remove bullet points for my most recent role (Apple).
+- Keep it to one page.
+- Keep every metric exactly as written in my master resume.`;
+
+const BASE_PROMPT = `You are an expert technical resume writer and LaTeX typesetter. You tailor the candidate's resume to one specific job.
+
+Hard rules:
+- Use ONLY facts from <master_resume>. Never invent employers, titles, dates, degrees, metrics, tools or projects. You may rephrase, reorder, merge, trim and emphasize.
+- Mirror the job description's wording wherever the candidate's real experience matches it, so the resume passes ATS keyword screens.
+- Follow <candidate_rules>. They override your own preferences.
+- The document must compile with pdflatex on a standard TeX Live install. Keep the template's preamble and macros; only add a standard package if a requested change needs it.
+- Escape LaTeX special characters in content: & % $ # _ { } ~ ^ and backslash.
+
+Response format, always:
+1. One to four short plain-text sentences saying what you changed and why. No markdown headings.
+2. The COMPLETE document in a single fenced block that opens with \`\`\`latex and closes with \`\`\`. Never send partial documents or diffs.
+If the user only asks a question and no edit is needed, answer it and leave out the latex block.`;
+
+/* ---------- storage ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('rt:' + k); return v === null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('rt:' + k, JSON.stringify(v)); }catch{} }
+};
+let settings = Object.assign(
+  { apiKey:'', model:'claude-sonnet-5-5', master:'', rules:DEFAULT_RULES, template:'' },
+  store.get('settings', {}));
+let session = Object.assign(
+  { company:'', role:'', jd:'', latex:'', chat:[], versions:[] },
+  store.get('session', {}));
+let saveTimer;
+const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('session', session), 300); };
+
+/* ---------- Claude ---------- */
+function buildSystem(){
+  return `${BASE_PROMPT}
+
+<candidate_rules>
+${settings.rules.trim() || 'None.'}
+</candidate_rules>
+
+<master_resume>
+${settings.master.trim()}
+</master_resume>
+
+<target_job>
+Company: ${session.company}
+Role: ${session.role || 'not specified'}
+${session.jd.trim()}
+</target_job>`;
+}
+
+async function callClaude(messages){
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key':settings.apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:settings.model,
+      max_tokens:8000,
+      system:[{ type:'text', text:buildSystem(), cache_control:{ type:'ephemeral' } }],
+      messages
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data?.error?.message || `Anthropic API returned ${res.status}.`);
+  if(data.stop_reason === 'max_tokens') throw new Error('The reply was cut off before the document ended. Ask for a shorter resume or raise max_tokens in index.html.');
+  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+}
+
+function splitReply(text){
+  const re = /```(?:latex|tex)?[ \t]*\n([\s\S]*?)```/g;
+  const blocks = [...text.matchAll(re)].map(m => m[1].trim());
+  const latex = blocks.reverse().find(b => b.includes('\\documentclass')) || null;
+  return { latex, summary: text.replace(re, '').trim() };
+}
+
+// Past turns are sent as short summaries; only the latest turn carries the full document.
+function buildMessages(lastContent){
+  const hist = session.chat.slice(-13, -1).map(m => ({ role:m.role, content:m.text }));
+  while(hist.length && hist[0].role !== 'user') hist.shift();
+  if(hist.length && hist[hist.length - 1].role === 'user') hist.pop();
+  return [...hist, { role:'user', content:lastContent }];
+}
+
+async function runTurn(displayText, lastContent, label){
+  session.chat.push({ role:'user', text:displayText });
+  renderChat();
+  const pending = addLine('pending', session.latex ? 'Claude is editing your resume…' : 'Claude is writing your resume…');
+  setBusy(true);
+  try{
+    const reply = await callClaude(buildMessages(lastContent));
+    const { latex, summary } = splitReply(reply);
+    session.chat.push({ role:'assistant', text: summary || (latex ? 'Updated the resume.' : reply) });
+    if(latex){ setLatex(latex, label); compile(); }
+    return true;
+  }catch(e){
+    session.chat.pop();
+    renderChat();
+    addLine('error', e.message);
+    return false;
+  }finally{
+    pending.remove();
+    setBusy(false);
+    renderChat(false);
+    save();
+  }
+}
+
+async function generate(){
+  readJob();
+  if(!ensureSettings()) return;
+  if(!session.company.trim() || !session.jd.trim()){ addLine('error', 'Add the company name and the job description first.'); return; }
+  if(session.latex && !confirm('Replace the current resume with a new one for this job?')) return;
+  session.chat = [];
+  const template = settings.template.trim() || DEFAULT_TEMPLATE;
+  const display = `Write my resume for ${session.company}${session.role ? ', ' + session.role : ''}.`;
+  const content = `${display}\n\nFill this LaTeX template:\n\`\`\`latex\n${template}\n\`\`\``;
+  const ok = await runTurn(display, content, 'First draft');
+  if(ok) $('#job').open = false;
+}
+
+async function sendChat(e){
+  e.preventDefault();
+  const input = $('#chat-input');
+  const text = input.value.trim();
+  if(!text) return;
+  if(!ensureSettings()) return;
+  if(!session.latex){ addLine('error', 'Generate a resume first, then ask for changes.'); return; }
+  input.value = '';
+  const content = `Current document:\n\`\`\`latex\n${session.latex}\n\`\`\`\n\nChange request: ${text}`;
+  const ok = await runTurn(text, content, text.length > 40 ? text.slice(0, 40) + '…' : text);
+  if(!ok) input.value = text;
+}
+
+/* ---------- LaTeX, compile, export ---------- */
+function setLatex(latex, label){
+  session.latex = latex;
+  $('#source').value = latex;
+  session.versions.push({ t:Date.now(), label, latex });
+  if(session.versions.length > 30) session.versions.shift();
+  renderVersions();
+  save();
+}
+
+let compiling = false;
+function compile(target = 'preview'){
+  if(!session.latex.trim()){ setStatus('Nothing to compile yet'); return; }
+  const last = session.versions[session.versions.length - 1];
+  if(!last || last.latex !== session.latex) setLatex(session.latex, 'Manual edit');
+  const f = $('#latex-form');
+  f.elements['filecontents[]'].value = session.latex;
+  f.target = target;
+  if(target === 'preview'){ compiling = true; setStatus('Compiling…'); $('#empty').hidden = true; }
+  f.submit();
+}
+$('#preview').addEventListener('load', () => {
+  if(!compiling) return;
+  compiling = false;
+  setStatus('Compiled. A log instead of a PDF means a LaTeX error — paste it into the chat.');
+});
+
+function fileBase(){
+  const slug = (session.company || 'resume').replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '');
+  return `Resume_${slug}`;
+}
+function downloadTex(){
+  if(!session.latex) return addLine('error', 'Generate a resume first.');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([session.latex], { type:'application/x-tex' }));
+  a.download = fileBase() + '.tex';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function openOverleaf(){
+  if(!session.latex) return addLine('error', 'Generate a resume first.');
+  const f = $('#overleaf-form');
+  f.elements.encoded_snip.value = encodeURIComponent(session.latex);
+  f.elements.snip_name.value = fileBase();
+  f.submit();
+}
+
+/* ---------- UI ---------- */
+function readJob(){
+  session.company = $('#company').value.trim();
+  session.role = $('#role').value.trim();
+  session.jd = $('#jd').value;
+  renderTarget();
+  save();
+}
+function renderTarget(){
+  const t = $('#target');
+  t.textContent = '';
+  if(!session.company){ t.textContent = 'No job loaded yet'; return; }
+  const s = document.createElement('strong');
+  s.textContent = session.company;
+  t.append(s, session.role ? `  ${session.role}` : '');
+}
+function addLine(kind, text){
+  const d = document.createElement('div');
+  d.className = 'msg ' + kind;
+  d.textContent = text;
+  $('#chat').append(d);
+  $('#chat').scrollTop = $('#chat').scrollHeight;
+  return d;
+}
+function renderChat(scroll = true){
+  const c = $('#chat');
+  c.textContent = '';
+  if(!session.chat.length){
+    const h = document.createElement('p');
+    h.className = 'hint';
+    h.textContent = 'After the first draft, ask for edits here. Each change recompiles the preview, and every version is kept in the menu at the top.';
+    c.append(h);
+  }
+  for(const m of session.chat) addLine(m.role === 'user' ? 'user' : 'claude', m.text);
+  if(scroll) c.scrollTop = c.scrollHeight;
+}
+function renderVersions(){
+  const sel = $('#versions');
+  sel.textContent = '';
+  const head = new Option(session.versions.length ? `Versions (${session.versions.length})` : 'No versions yet', '');
+  head.disabled = true; head.selected = true;
+  sel.append(head);
+  [...session.versions].map((v, i) => [v, i]).reverse().forEach(([v, i]) => {
+    const time = new Date(v.t).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    sel.append(new Option(`${time}  ${v.label}`, i));
+  });
+}
+function setStatus(t){ $('#status').textContent = t; }
+function setBusy(b){ ['#btn-generate', '#btn-send'].forEach(s => $(s).disabled = b); }
+function selectTab(name){
+  document.querySelectorAll('[role=tab]').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
+  $('#pane-preview').hidden = name !== 'preview';
+  $('#pane-source').hidden = name !== 'source';
+}
+
+function ensureSettings(){
+  if(settings.apiKey && settings.master.trim()) return true;
+  openSettings();
+  return false;
+}
+function openSettings(){
+  $('#s-key').value = settings.apiKey;
+  $('#s-model').value = settings.model;
+  $('#s-master').value = settings.master;
+  $('#s-rules').value = settings.rules;
+  $('#s-template').value = settings.template;
+  $('#settings').showModal();
+}
+$('#settings').addEventListener('close', () => {
+  if($('#settings').returnValue !== 'save') return;
+  settings = {
+    apiKey:$('#s-key').value.trim(),
+    model:$('#s-model').value.trim() || 'claude-sonnet-5-5',
+    master:$('#s-master').value,
+    rules:$('#s-rules').value,
+    template:$('#s-template').value
+  };
+  store.set('settings', settings);
+});
+
+/* ---------- wiring ---------- */
+$('#btn-generate').onclick = generate;
+$('#chat-form').addEventListener('submit', sendChat);
+$('#chat-input').addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('#chat-form').requestSubmit(); }
+});
+['#company', '#role', '#jd'].forEach(s => $(s).addEventListener('input', readJob));
+$('#btn-new').onclick = () => {
+  if(!confirm('Start a new application? The current resume and chat will be cleared.')) return;
+  session = { company:'', role:'', jd:'', latex:'', chat:[], versions:[] };
+  ['#company', '#role', '#jd', '#source'].forEach(s => $(s).value = '');
+  $('#job').open = true; $('#empty').hidden = false; $('#preview').src = 'about:blank';
+  setStatus(''); renderTarget(); renderChat(); renderVersions(); store.set('session', session);
+};
+$('#source').addEventListener('input', e => { session.latex = e.target.value; setStatus('Edited. Recompile to update the preview.'); save(); });
+document.addEventListener('keydown', e => { if((e.ctrlKey || e.metaKey) && e.key === 'Enter' && document.activeElement !== $('#chat-input')){ e.preventDefault(); compile(); } });
+$('#btn-compile').onclick = () => compile();
+$('#btn-pdf').onclick = () => compile('_blank');
+$('#btn-tex').onclick = downloadTex;
+$('#btn-overleaf').onclick = openOverleaf;
+$('#btn-settings').onclick = openSettings;
+document.querySelectorAll('[role=tab]').forEach(t => t.onclick = () => selectTab(t.dataset.tab));
+$('#versions').addEventListener('change', e => {
+  const v = session.versions[+e.target.value];
+  if(v){ session.latex = v.latex; $('#source').value = v.latex; compile(); }
+  renderVersions();
+});
+
+/* ---------- start ---------- */
+$('#company').value = session.company;
+$('#role').value = session.role;
+$('#jd').value = session.jd;
+$('#source').value = session.latex;
+renderTarget(); renderChat(); renderVersions();
+if(session.latex){ $('#job').open = false; compile(); }
+if(!settings.apiKey || !settings.master.trim()) openSettings();
+</script>
+</body>
+</html>
